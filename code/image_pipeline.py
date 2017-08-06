@@ -27,7 +27,7 @@ def rectify(img):
     rectified_img = cv2.warpPerspective(img, M, image_shape, flags=cv2.INTER_LINEAR)
     return rectified_img, Minv
 
-def thresholding(img, s_thresh=(60, 255), m_thresh=(10, 255), sx_thresh=(3, 255), angle_thresh=(-0.5, 0.5)):
+def thresholding(img, s_thresh=(40, 255), m_thresh=(9, 255), sx_thresh=(2, 255), angle_thresh=(-0.5, 0.5)):
     img = np.copy(img)
 
     # Convert to HSV color space and separate the V channel
@@ -61,7 +61,7 @@ def thresholding(img, s_thresh=(60, 255), m_thresh=(10, 255), sx_thresh=(3, 255)
     s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
     
     combined = np.zeros_like(magnitude)
-    combined[(anglebinary == 1) & ((m_binary == 1) | (sxbinary == 1)) & (s_binary == 1)] = 1
+    combined[(anglebinary == 1) & ((m_binary == 1) & (sxbinary == 1)) & (s_binary == 1)] = 1
     return combined
 
 def sliding_window_detector(binary_rectified, left_fit=None, right_fit=None):
@@ -158,8 +158,8 @@ def calculate_curvature(left_fit, right_fit, rectified_binary):
     y_eval = np.max(ploty)
     
     # Define conversions in x and y from pixels space to meters
-    ym_per_pix = 3/50       # meters per pixel in y dimension
-    xm_per_pix = 3.7/500    # meters per pixel in x dimension
+    ym_per_pix = 30/720       # meters per pixel in y dimension
+    xm_per_pix = 3.7/900    # meters per pixel in x dimension
     
     leftx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
     rightx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
@@ -170,8 +170,9 @@ def calculate_curvature(left_fit, right_fit, rectified_binary):
     # Calculate the new radii of curvature
     left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
     right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
+    distance_to_center = (-rectified_binary.shape[1]/2+(leftx[0] + rightx[0])/2) * xm_per_pix
 
-    return left_curverad, right_curverad
+    return left_curverad, right_curverad, distance_to_center
 
 
 def warp_back(undist, rectified_binary, left_fitx, right_fitx, Minv):
@@ -198,9 +199,9 @@ def pipeline(img, mtx, dist, previous_left_fit=None, previous_right_fit=None):
     rectified_img, Minv = rectify(undistorted_img)
     rectified_binary = thresholding(rectified_img)
     left_fit, right_fit, left_fitx, right_fitx = sliding_window_detector(rectified_binary, previous_left_fit, previous_right_fit)
-    left_curverad, right_curverad = calculate_curvature(left_fit, right_fit, rectified_binary)
+    left_curverad, right_curverad, distance_to_center = calculate_curvature(left_fit, right_fit, rectified_binary)
     result = warp_back(undistorted_img, rectified_binary, left_fitx, right_fitx, Minv)
-    return result, left_fit, right_fit, left_curverad, right_curverad
+    return result, left_fit, right_fit, left_curverad, right_curverad, distance_to_center
 
 if __name__ == '__main__':
     mtx, dist = compute_camera_matrix()

@@ -48,10 +48,10 @@ The code for my perspective transform includes a function called `rectify()`, wh
          [578, 460]])
 
     dst = np.float32(
-        [[400, 650],
-         [900, 650],
-         [900, 200],
-         [400, 200]])
+        [[400, 700],
+         [900, 700],
+         [900, 0],
+         [400, 0]])
 ```
 
 I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.

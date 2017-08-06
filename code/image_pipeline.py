@@ -16,10 +16,10 @@ def rectify(img):
          [578, 460]])
 
     dst = np.float32(
-        [[400, 650],
-         [900, 650],
-         [900, 200],
-         [400, 200]])
+        [[400, 700],
+         [900, 700],
+         [900, 0],
+         [400, 0]])
 
     image_shape = (img.shape[1], img.shape[0])
     M = cv2.getPerspectiveTransform(src, dst)
@@ -27,17 +27,13 @@ def rectify(img):
     rectified_img = cv2.warpPerspective(img, M, image_shape, flags=cv2.INTER_LINEAR)
     return rectified_img, Minv
 
-def thresholding(img, s_thresh=(40, 255), m_thresh=(9, 255), sx_thresh=(2, 255), angle_thresh=(-0.5, 0.5)):
+def thresholding(img, r_thresh=(190, 255), m_thresh=(5, 255), sx_thresh=(4, 255), angle_thresh=(-0.5, 0.5)):
     img = np.copy(img)
-
-    # Convert to HSV color space and separate the V channel
-    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
-    l_channel = hls[:,:,1]
-    s_channel = hls[:,:,2]
+    r_channel = img[:,:,2]
     
     # Sobel x
-    sobelx = cv2.Sobel(s_channel, cv2.CV_64F, 1, 0) # Take the derivative in x
-    sobely = cv2.Sobel(s_channel, cv2.CV_64F, 0, 1)
+    sobelx = cv2.Sobel(r_channel, cv2.CV_64F, 1, 0) # Take the derivative in x
+    sobely = cv2.Sobel(r_channel, cv2.CV_64F, 0, 1)
     abs_sobelx = np.absolute(sobelx) # Absolute x derivative to accentuate lines away from horizontal
     scaled_sobel = np.uint8(255*abs_sobelx/np.max(abs_sobelx))
     
@@ -57,11 +53,12 @@ def thresholding(img, s_thresh=(40, 255), m_thresh=(9, 255), sx_thresh=(2, 255),
     anglebinary[(angle >= angle_thresh[0]) & (angle <= angle_thresh[1])] = 1
         
     # Threshold color channel
-    s_binary = np.zeros_like(s_channel)
-    s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
+    r_binary = np.zeros_like(r_channel)
+    r_binary[(r_channel >= r_thresh[0]) & (r_channel <= r_thresh[1])] = 1
     
     combined = np.zeros_like(magnitude)
-    combined[(anglebinary == 1) & ((m_binary == 1) & (sxbinary == 1)) & (s_binary == 1)] = 1
+    combined[(anglebinary == 1) & ((m_binary == 1) & (sxbinary == 1)) & (r_binary == 1)] = 1
+    
     return combined
 
 def sliding_window_detector(binary_rectified, left_fit=None, right_fit=None):
@@ -159,7 +156,7 @@ def calculate_curvature(left_fit, right_fit, rectified_binary):
     
     # Define conversions in x and y from pixels space to meters
     ym_per_pix = 30/720       # meters per pixel in y dimension
-    xm_per_pix = 3.7/900    # meters per pixel in x dimension
+    xm_per_pix = 3.7/500    # meters per pixel in x dimension
     
     leftx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
     rightx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
@@ -170,7 +167,7 @@ def calculate_curvature(left_fit, right_fit, rectified_binary):
     # Calculate the new radii of curvature
     left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
     right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
-    distance_to_center = (-rectified_binary.shape[1]/2+(leftx[0] + rightx[0])/2) * xm_per_pix
+    distance_to_center = (-rectified_binary.shape[1]/2+(leftx[-1] + rightx[-1])/2) * xm_per_pix
 
     return left_curverad, right_curverad, distance_to_center
 

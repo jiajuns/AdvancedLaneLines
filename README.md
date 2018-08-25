@@ -88,7 +88,7 @@ Determine the curvature
 ---
 I use below equation to calculated the curvature:
 
-![alt text]("http://www.sciweavers.org/tex2img.php?eq=%5B1%2B%282Ay%2BB%29%5E2%5D%5E%7B3%2F2%7D%2F%7C2A%7C&bc=White&fc=Black&im=png&fs=12&ff=arev&edit=0")
+![equation](http://www.sciweavers.org/tex2img.php?eq=%5B1%2B%282Ay%2BB%29%5E2%5D%5E%7B3%2F2%7D%2F%7C2A%7C&bc=White&fc=Black&im=png&fs=12&ff=arev&edit=0)
 
 The position of the vehical is defined as the distance from the center pixel to the average of left lane and right lane. I did this in lines 156 through 175 in my code in `/code/image_pipeline.py`
 

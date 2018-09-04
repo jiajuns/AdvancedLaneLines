@@ -30,17 +30,33 @@ The images for camera calibration are stored in the folder called `camera_cal`. 
 Camera Calibration
 ---
 
-The code for this step is contained in the first code cell of the IPython notebook located in "advanced_lane_detection.ipynb" (or in lines # through # of the file called `code/camera_cal.py`).
+Camera calibration is to solve camera intrinsics and distortion parameters. Most important intrinsics include `focal length` and `principal points`. Here, I take the advantage of OpenCV `cv2.calibrateCamera()` function, which requires two parameters: (1) `objpoints` and (2) `imgpoints`. The code for this step is contained in the first code cell of the IPython notebook located in `advanced_lane_detection.ipynb`
 
-I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.
+I start by preparing `object points`, which will be the (x, y, z) coordinates of the chessboard corners in the real world. I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.
 
-I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  
+`imgpoints` will be appended with the (x, y) pixel position of each of the corners in the focal plane. OpenCV has predefined a helper function that assists identify chessboard corner location from grayscale image:
+
+```python
+img = cv2.imread(file_path)
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+ret, corners = cv2.findChessboardCorners(gray, (nx, ny), None)
+```
+
+After preparing `objpoints` and `imgpoints`, you can directly use `cv2.calibrateCamera()`:
+
+```python
+ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img.shape[:2], None, None)
+```
 
 
 Image undistortion
 ---
 
-I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result:
+Given the distortion coefficient from camera calibration, I can apply distortion correction to the test image using the `cv2.undistort()` function and obtained this result:
+
+```python
+undist = cv2.undistort(img, mtx, dist, None, mtx)
+```
 
 ![alt text][image1]
 
@@ -52,7 +68,24 @@ Below is an example of undistorted image for the road.
 Create a Thresholded Binary Image
 ---
 
-I used a combination of color and gradient thresholds and angle to generate a binary image (thresholding steps at lines 30 through 65 in `/code/image_pipeline.py`).  Here's an example of my output for this step.
+I used a combination of color and gradient thresholds and angle to generate a binary image (thresholding steps at lines 30 through 65 in `/code/image_pipeline.py`).
+One safe assumption for lane lines are the angle of lines are oritentated around 90 degrees. In order to extract angle information, I apply sobel filter on x and y direction:
+
+```python
+sobelx = cv2.Sobel(r_channel, cv2.CV_64F, 1, 0) # Take the derivative in x
+sobely = cv2.Sobel(r_channel, cv2.CV_64F, 0, 1)
+
+# Threshold magnitude
+magnitude = np.sqrt(sobelx**2 + sobely**2)
+magnitude = np.uint8(255*magnitude/np.max(magnitude))
+m_binary = np.zeros_like(magnitude)
+m_binary[(magnitude >= m_thresh[0]) & (magnitude <= m_thresh[1])] = 1
+
+# Threshold direction
+angle = np.arctan2(np.absolute(sobely), np.absolute(sobelx))
+anglebinary = np.zeros_like(angle)
+anglebinary[(angle >= angle_thresh[0]) & (angle <= angle_thresh[1])] = 1
+```
 
 ![alt text][image3]
 
